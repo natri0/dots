@@ -115,6 +115,7 @@
     settings = {
       PasswordAuthentication = false;
       PermitRootLogin = "no";
+      AllowAgentForwarding = true;
     };
   };
 
