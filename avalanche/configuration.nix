@@ -21,7 +21,7 @@
   users.mutableUsers = false; # we configure users here
   users.users.lina = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "podman" ];
 
     hashedPassword = "$y$j9T$Mnc4VHQ4i0b85CQxFVaXB/$2XncxIjRhh6Zocl7/lfqeS8D14Mpdqg9deVaiI7lWcA";
     openssh.authorizedKeys.keys = [
@@ -46,6 +46,19 @@
       PasswordAuthentication = false;
       PermitRootLogin = "no";
       AllowAgentForwarding = true;
+    };
+  };
+
+  virtualisation = {
+    containers.enable = true;
+    podman = {
+      enable = true;
+      dockerCompat = true;
+      defaultNetwork.settings.dns_enabled = true;
+    };
+
+    oci-containers.backend = "podman";
+    oci-containers.containers = {
     };
   };
 
