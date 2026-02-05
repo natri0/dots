@@ -58,12 +58,29 @@
     };
 
     oci-containers.backend = "podman";
-    oci-containers.containers = {
-    };
   };
 
+  services.caddy.enable = true;
+
+  # Kanidm SSO
+  virtualisation.oci-containers.containers.sso = {
+    image = "docker.io/kanidm/server:latest";
+    volumes = [
+      "/var/lib/kanidm:/data"
+      "${./kanidm.toml}:/data/server.toml"
+    ];
+    ports = [ "127.0.0.1:8001:8443" ];
+  };
+  services.caddy.virtualHosts."sso.natri.fyi".extraConfig = ''
+    reverse_proxy 127.0.0.1:8001 {
+      transport http { tls_insecure_skip_verify }
+    }
+    # respond "OK. check again later"
+  '';
+  systemd.tmpfiles.rules = [ "d /var/lib/kanidm 0750 root root -" ];
+
   # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
+  networking.firewall.allowedTCPPorts = [ 80 443 ];
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
