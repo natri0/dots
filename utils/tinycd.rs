@@ -2,7 +2,7 @@
 ---cargo
 [dependencies]
 axum = "0.8"
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1", features = ["rt", "macros", "process"] }
 
 serde = { version = "1", features = ["derive"] }
 toml = "1"
@@ -19,6 +19,8 @@ use axum::{Router, routing::get, response::IntoResponse};
 use axum::http::{status::StatusCode, header::HeaderMap};
 use axum::extract::{Path, State};
 
+use tokio::process::Command;
+
 use ed25519_dalek::{VerifyingKey, PUBLIC_KEY_LENGTH, Signature};
 
 #[derive(serde::Deserialize)]
@@ -28,8 +30,6 @@ struct Config {
 
   #[serde(with = "hex")]
   pubkey: [u8; PUBLIC_KEY_LENGTH],
-
-  base_dir: String,
 
   #[serde(default)]
   commands: HashMap<String, CommandConfig>,
@@ -42,25 +42,35 @@ struct CommandConfig {
   workdir: Option<String>,
 }
 
+struct AppState {
+  config: Config,
+  config_dir: std::path::PathBuf,
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
   let config_path = std::env::args().nth(1)
     .expect("no config path given");
 
-  let config = fs::read_to_string(config_path)
+  let config = fs::read_to_string(&config_path)
     .expect("bad config path");
 
   let config: Config = toml::from_str(&config)
     .expect("bad config");
 
-  let config = Arc::new(config);
+  let state = Arc::new(AppState {
+    config,
+    config_dir: fs::canonicalize(config_path)
+      .expect("couldn't get config absolute path")
+      .parent().unwrap().to_path_buf()
+  });
 
   let app = Router::new()
     .route("/run/{cmd}", get(handle_run))
-    .with_state(config.clone());
+    .with_state(state.clone());
 
   axum::serve(
-    tokio::net::TcpListener::bind(&config.listen_addr).await
+    tokio::net::TcpListener::bind(&state.config.listen_addr).await
       .expect("could not bind"),
     app
   ).await.unwrap()
@@ -68,12 +78,14 @@ async fn main() {
 
 async fn handle_run(
   Path(cmd): Path<String>,
-  State(config): State<Arc<Config>>,
+  State(state): State<Arc<AppState>>,
   headers: HeaderMap
 ) -> impl IntoResponse {
-  if !config.commands.contains_key(&cmd) {
+  let config = &state.config;
+
+  let Some(command) = config.commands.get(&cmd) else {
     return (StatusCode::NOT_FOUND, "no such command");
-  }
+  };
 
   let Ok(pubkey) = VerifyingKey::from_bytes(&config.pubkey) else {
     return (StatusCode::INTERNAL_SERVER_ERROR, "bad pubkey in config");
@@ -82,6 +94,25 @@ async fn handle_run(
   if !check_signature(&cmd, &headers, &pubkey) {
     return (StatusCode::BAD_REQUEST, "missing or invalid signature");
   }
+
+  let Ok(mut pull) = Command::new("git")
+    .arg("pull")
+    .current_dir(&state.config_dir)
+    .spawn() else { return (StatusCode::INTERNAL_SERVER_ERROR, "failed to spawn git pull"); };
+  match pull.wait().await {
+    Ok(st) if st.success() => {}
+    _ => { return (StatusCode::INTERNAL_SERVER_ERROR, "failed to git pull"); }
+  };
+
+  let Ok(mut sh) = Command::new("sh")
+    .arg("-c")
+    .arg(&command.command)
+    .current_dir(&state.config_dir.join(&command.workdir.as_deref().unwrap_or(".")))
+    .spawn() else { return (StatusCode::INTERNAL_SERVER_ERROR, "failed to spawn command"); };
+  match sh.wait().await {
+    Ok(st) if st.success() => {}
+    _ => { return (StatusCode::INTERNAL_SERVER_ERROR, "failed to run command"); }
+  };
 
   (StatusCode::OK, "ran successfully")
 }
