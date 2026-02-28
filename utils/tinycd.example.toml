@@ -1,0 +1,7 @@
+listen-addr = "127.0.0.1:6969"
+
+pubkey = "a813144b7009f55d0a6493853ac788796b22abe74573effba2780c4c909bf2e6"
+
+[commands.test]
+command = "echo test"
+workdir = "."
