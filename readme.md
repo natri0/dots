@@ -23,8 +23,7 @@ this outputs a `tinycd` executable in the current directory.
 either run it directly (e.g. `utils/tinycd.rs CONFIG_PATH`) or run the executable from the previous step.
 it expects a config file as the 1st and only parameter, that looks smth like this:
 ```toml
-listen-addr = "some.ip.addr"
-port = some-port
+listen-addr = "some.ip.addr:port"
 
 base-dir = "folder with the git repo. will be pulled on every command run"
 
