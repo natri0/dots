@@ -1,4 +1,4 @@
-{ artifactName, actionRun, zipDerivationHash }:
+{ artifactName, actionRun, zipDerivationHash, pkgs }:
 let
   repo = "natri0/dots";
   runInfoUrl = "https://api.github.com/repos/${repo}/actions/runs/${actionRun}/artifacts";
@@ -10,7 +10,7 @@ let
     url = builtins.fetchurl artifactJson.archive_download_url;
     hash = zipDerivationHash;
   };
-in stdenv.mkDerivation {
+in pkgs.stdenv.mkDerivation {
   name = artifactName;
   src = artifact;
 }
