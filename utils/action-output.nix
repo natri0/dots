@@ -3,8 +3,9 @@ let
   repo = "natri0/dots";
   runInfoUrl = "https://api.github.com/repos/${repo}/actions/runs/${actionRun}/artifacts";
 
-  matchArtifact = name: artifact: artifact.name == name;
-  artifactJson = builtins.head builtins.filter (matchArtifact artifactName) (builtins.fromJSON builtins.readFile builtins.fetchurl runInfoUrl).artifacts;
+  matchArtifact = artifact: artifact.name == artifactName;
+  artifactsList = (builtins.fromJSON builtins.readFile builtins.fetchurl runInfoUrl).artifacts;
+  artifactJson = builtins.head (builtins.filter matchArtifact artifactsList);
 
   artifact = pkgs.fetchzip {
     url = builtins.fetchurl artifactJson.archive_download_url;
