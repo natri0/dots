@@ -1,0 +1,32 @@
+name: Build utils
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [tinycd]
+    name: build ${{ matrix.target }} (if needed)
+    steps:
+      - uses: actions/checkout@v6
+      - name: use nightly rust
+        run: |
+          rustup override set nightly
+      - uses: dorny/paths-filter@v3
+        name: check if ${{ matrix.target }}.rs modified / need rebuild
+        id: check
+        continue-on-error: true
+        with:
+          filters: |
+            utils:
+              - 'utils/${{ matrix.target }}.rs'
+              - '.github/workflows/*'
+      - if: (steps.check.outputs.utils == 'true' || github.event_name == 'workflow_dispatch')
+        name: build
+        run: |
+          cargo build -Zscript -Zunstable-options --release --manifest-path utils/${{ matrix.target }}.rs --artifact-dir .
+      - if: (steps.check.outputs.utils == 'true' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.target }}
