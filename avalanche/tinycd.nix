@@ -1,5 +1,5 @@
 let
-  actionOutput = import ../utils/actions-output.nix;
+  actionOutput = import ../utils/action-output.nix;
 in
 actionOutput {
   artifactName = "tinycd";
