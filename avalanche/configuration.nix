@@ -9,7 +9,7 @@ let
   kanidmPort = 8001;
   kanidmDomain = "sso.${baseDomain}";
 
-  tinycd = import ./tinycd.nix;
+  tinycd = pkgs.callPackage ./tinycd.nix {};
 in
 {
   imports =
