@@ -7,7 +7,7 @@ also contains the source to some small utilities:
 
 ## tinycd
 
-[`tinycd`](./tinycd.rs) is a *tiny* continuous delivery Thing, written in a single Rust file.
+[`tinycd`](./utils/tinycd.rs) is a *tiny* continuous delivery Thing, written in a single Rust file.
 
 ### running
 
@@ -15,16 +15,7 @@ also contains the source to some small utilities:
 > nightly Cargo is required. the tool was tested with `cargo 1.95.0-nightly (f298b8c82 2026-02-24)`; if using older versions, ymmv.
 
 either run it directly (e.g. `utils/tinycd.rs CONFIG_PATH`) or run the executable from the previous step.
-it expects a config file as the 1st and only parameter, that looks smth like this:
-```toml
-listen-addr = "some.ip.addr:port"
-
-pubkey = "ed25519 pubkey, hex"
-
-[commands.command-name]
-command = "echo test"
-workdir = "this field is optional. relative to the config location"
-```
+it expects a config file as the 1st and only parameter. for an example, see [`utils/tinycd.example.toml`](./utils/tinycd.example.toml).
 
 ### usage
 
@@ -42,23 +33,25 @@ openssl genpkey -algorithm ed25519 -out private.pem # for signing
 openssl pkey -in private.pem -pubout -outform DER | tail -c 32 | xxd -p -c 32 # the output is the pubkey; put in the .toml `pubkey` field
 ```
 
-then, generate a signature:
+then, generate a timestamp and a signature:
 ```sh
-echo -n "test" | openssl pkeyutl -sign -inkey private.pem -in /dev/stdin | xxd -p -c 64
+timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ") # generate timestamp. timezone doesn't matter, UTC here for simplicity
+echo $timestamp
+echo -n "test:$timestamp" | openssl pkeyutl -sign -inkey private.pem -in /dev/stdin | xxd -p -c 64
 ```
 
 pass the signature in the `curl` command:
 ```sh
-curl -i --header 'CD-Signature: SIGNATURE_HERE' http://localhost:6969/run/test
+curl -i --header 'CD-Signature: SIGNATURE_HERE' --header 'CD-Timestamp: TIMESTAMP_HERE' http://localhost:6969/run/test
 ```
 
 if successful, you'll see the output of both the `git pull` and the configured command in the `tinycd` output, and a small message in your `curl`:
 ```
-% curl -i --header 'CD-Signature: d3921bafb8118858ad49de927f24c52492b85b6786d5de9161ccf0caa7bf4fe8088013f0c01ca26cf774508597b5d386d16770250d4134d70c90a51aadecd905' http://localhost:6969/run/test
+% curl -i --header 'CD-Signature: 10c17a3431440c7ef51acbbc94613bc52524610b0f0e893a253b90c9c5db82abb84de84040bc27ccb333340049885acd0d42571abca4046f7d15de2b47fbff04' --header 'CD-Timestamp: 2026-03-01T13:48:34Z' localhost:6969/run/test
 HTTP/1.1 200 OK
 content-type: text/plain; charset=utf-8
 content-length: 16
-date: Sat, 28 Feb 2026 20:59:09 GMT
+date: Sun, 01 Mar 2026 13:49:12 GMT
 
 ran successfully
 ```
