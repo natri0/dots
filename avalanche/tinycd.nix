@@ -12,5 +12,5 @@ stdenv.mkDerivation {
     mkdir -p $out/bin
     cp $src/tinycd $out/bin/tinycd
     chmod +x $out/bin/tinycd
-  ''
+  '';
 }
