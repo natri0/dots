@@ -8,6 +8,8 @@ let
 
   kanidmPort = 8001;
   kanidmDomain = "sso.${baseDomain}";
+
+  tinycd = import ./tinycd.nix;
 in
 {
   imports =
@@ -34,6 +36,7 @@ in
     ];
 
     packages = with pkgs; [
+      tinycd
     ];
   };
 
