@@ -23,21 +23,33 @@ use axum::extract::{Path, State};
 use tokio::process::Command;
 
 use ed25519_dalek::{VerifyingKey, PUBLIC_KEY_LENGTH, Signature};
-use jiff::{Zoned, Span, ToSpan, Unit, Timestamp};
+use jiff::{Span, ToSpan, Unit, Timestamp};
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
   listen_addr: String,
 
+  signing: SigningConfig,
+
+  #[serde(default)]
+  commands: HashMap<String, CommandConfig>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "kebab-case")]
+struct SigningConfig {
   #[serde(with = "hex")]
   pubkey: [u8; PUBLIC_KEY_LENGTH],
 
   #[serde(default = "default_sign_window")] // 5m by default
   sign_window: Span,
+}
 
-  #[serde(default)]
-  commands: HashMap<String, CommandConfig>,
+impl SigningConfig {
+  fn verifying_key(&self) -> Option<VerifyingKey> {
+    VerifyingKey::from_bytes(&self.pubkey).ok()
+  }
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -99,11 +111,7 @@ async fn handle_run(
     return (StatusCode::NOT_FOUND, "no such command");
   };
 
-  let Ok(pubkey) = VerifyingKey::from_bytes(&config.pubkey) else {
-    return (StatusCode::INTERNAL_SERVER_ERROR, "bad pubkey in config");
-  };
-
-  if !check_signature(&cmd, &headers, &pubkey, &config.sign_window) {
+  if !check_signature(&cmd, &headers, &config.signing) {
     return (StatusCode::BAD_REQUEST, "missing or invalid signature or timestamp");
   }
 
@@ -129,7 +137,10 @@ async fn handle_run(
   (StatusCode::OK, "ran successfully")
 }
 
-fn check_signature(cmd: &str, headers: &HeaderMap, pubkey: &VerifyingKey, sign_window: &Span) -> bool {
+fn check_signature(cmd: &str, headers: &HeaderMap, sign_cfg: &SigningConfig) -> bool {
+  let Some(pubkey) = sign_cfg.verifying_key() else { return false; };
+  let sign_window = &sign_cfg.sign_window;
+
   let Some(timestamp_str) = headers.get("CD-Timestamp").map(|h| h.to_str().ok()).flatten() else { return false; };
   let Ok(timestamp) = timestamp_str.parse::<Timestamp>() else { return false; };
 
