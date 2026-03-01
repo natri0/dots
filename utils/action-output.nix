@@ -1,7 +1,7 @@
 { artifactName, actionRun, zipDerivationHash }:
 let
   repo = "natri0/dots";
-  runInfoUrl = https://api.github.com/repos/${repo}/actions/runs/${actionRun}/artifacts;
+  runInfoUrl = "https://api.github.com/repos/${repo}/actions/runs/${actionRun}/artifacts";
 
   matchArtifact = name: artifact: artifact.name == name;
   artifactJson = first builtins.filter (matchArtifact artifactName) (builtins.fromJSON builtins.readFile builtins.fetchurl runInfoUrl).artifacts;
