@@ -4,7 +4,8 @@ let
   runInfoUrl = "https://api.github.com/repos/${repo}/actions/runs/${actionRun}/artifacts";
 
   matchArtifact = artifact: artifact.name == artifactName;
-  artifactsList = (builtins.fromJSON builtins.readFile builtins.fetchurl runInfoUrl).artifacts;
+  artifactsRespJson = builtins.readFile (builtins.fetchurl runInfoUrl);
+  artifactsList = (builtins.fromJSON artifactsRespJson).artifacts;
   artifactJson = builtins.head (builtins.filter matchArtifact artifactsList);
 
   artifact = pkgs.fetchzip {
