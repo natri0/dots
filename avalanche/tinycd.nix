@@ -1,10 +1,5 @@
-{ pkgs }:
-let
-  actionOutput = import ../utils/action-output.nix;
-in
-actionOutput {
-  artifactName = "tinycd";
-  actionRun = "22548255794";
-  zipDerivationHash = "";
-  inherit pkgs;
+{ fetchzip }:
+fetchzip {
+  url = "https://nightly.link/natri0/dots/workflows/build-utils/main/tinycd.zip";
+  hash = "";
 }
